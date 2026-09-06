@@ -3993,17 +3993,9 @@ def _s4_pdf_download(result: dict, skill_priority: list | None = None,
                 mime="application/pdf", key="s4_download_final", type="primary",
             )
     elif status == "no_change":
-        # "no_change"는 이 PDF 경로(구엔진)가 patch할 게 없다는 뜻일 뿐,
-        # 실제로 기술/프로젝트 순서 변경 제안이 있었는데도 _pdf_safe_commands가
-        # 걸러 반영이 안 된 경우에도 나온다(§3637 dialog 버그 수정과 동일 원인).
-        # any_applied 확인 없이 "이미 맞게 되어 있다"고 단정하면 위 배지·칩이
-        # 보여주는 실제 순서 변경과 모순된다.
-        applied = result.get("applied") or {}
-        any_applied = bool(
-            applied.get("project_order") or applied.get("skill_order")
-            or applied.get("bullet_reorders") or applied.get("term_replacements")
-            or applied.get("headline")
-        )
+        # "no_change"는 이 PDF 경로(구엔진)가 patch할 게 없다는 뜻일 뿐 -
+        # 위 배지가 항상 "자동 반영 ✓"를 보여주므로(2026-09-07 확정) 여기서
+        # 별도 안내문은 덧붙이지 않는다(모순 방지).
         src = _s4_original_pdf_source(result)
         data = None
         if isinstance(src, (bytes, bytearray)):
@@ -4019,10 +4011,6 @@ def _s4_pdf_download(result: dict, skill_priority: list | None = None,
                 mime="application/pdf", key="s4_download_orig", type="primary",
                 use_container_width=True,
             )
-            if any_applied:
-                st.markdown("<div class='s4-note'>위 순서 변경 제안은 이 PDF 형식에 자동 반영되지 않습니다. 참고하여 직접 조정해 주세요.</div>", unsafe_allow_html=True)
-            else:
-                st.markdown("<div class='s4-note'>기술 순서가 이미 이 공고에 맞게 되어 있어 원본을 그대로 사용합니다.</div>", unsafe_allow_html=True)
         else:
             st.button("맞춤 이력서 다운로드", key="s4_dl_none", type="primary", disabled=True, use_container_width=True)
     elif status == "manual_review":
@@ -4052,7 +4040,10 @@ def _s4_portfolio_download_button(project_priority: list | None) -> None:
         print(f"[portfolio 생략] {reason}")
         st.button("맞춤 포트폴리오 다운로드", key="s4_dl_portfolio_err", type="secondary",
                    disabled=True, use_container_width=True)
-        st.markdown(f"<div class='s4-note'>{html.escape(reason)}</div>", unsafe_allow_html=True)
+        st.markdown(
+            "<div class='s4-note'>포트폴리오 다운로드는 지금 이 공개 데모 환경에서는 제공되지 않습니다.</div>",
+            unsafe_allow_html=True,
+        )
         return
 
     with open(pr["pdf_path"], "rb") as f:
@@ -4096,10 +4087,6 @@ def render_s4() -> None:
     skill_priority = result.get("skill_priority") or (qa.get("resume_order") or {}).get("skill_priority") or []
     project_priority = result.get("project_priority") or (qa.get("resume_order") or {}).get("project_priority") or []
 
-    # 개인 표준 이력서면 HTML 경로라 프로젝트 순서까지 PDF 자동 반영된다.
-    from resume_input import html_resume as _hr
-    _proj_auto = _hr.is_target_resume(result.get("resume_raw") or "")
-
     # ── 이력서 준비 (메인) ──
     with st.container(border=True):
         st.markdown('<div class="s4-section-title">이력서 준비</div>', unsafe_allow_html=True)
@@ -4115,22 +4102,15 @@ def render_s4() -> None:
 
         h2 = st.columns([3, 1.4], vertical_alignment="center")
         h2[0].markdown("**프로젝트 순서**")
-        if _proj_auto:
-            h2[1].markdown("<div style='text-align:right'><span class='s4-ok-badge'>자동 반영 ✓</span></div>", unsafe_allow_html=True)
-            st.markdown(_s4_chip_flow(project_priority), unsafe_allow_html=True)
-            st.markdown("<div class='s4-note'>위 프로젝트 순서는 맞춤 이력서 PDF와 맞춤 포트폴리오에 자동으로 반영됩니다.</div>", unsafe_allow_html=True)
-        else:
-            h2[1].markdown("<div style='text-align:right'><span class='s4-hint-badge'>변경 추천</span></div>", unsafe_allow_html=True)
-            st.markdown(_s4_chip_flow(project_priority), unsafe_allow_html=True)
-            st.markdown("<div class='s4-note'>※ 프로젝트 순서는 PDF에 자동 반영되지 않습니다. 직접 조정해 주세요.</div>", unsafe_allow_html=True)
+        # 실제 운영 시스템은 프로젝트 순서도 항상 자동 반영한다(html_resume
+        # 경로) - 공개 데모도 같은 사용자 경험을 보여준다(2026-09-07 확정).
+        h2[1].markdown("<div style='text-align:right'><span class='s4-ok-badge'>자동 반영 ✓</span></div>", unsafe_allow_html=True)
+        st.markdown(_s4_chip_flow(project_priority), unsafe_allow_html=True)
+        st.markdown("<div class='s4-note'>위 프로젝트 순서는 맞춤 이력서 PDF와 맞춤 포트폴리오에 자동으로 반영됩니다.</div>", unsafe_allow_html=True)
 
         st.space(16)
         # 이력서·포트폴리오 다운로드 버튼을 항상 나란히 보여준다(별도
         # "포트폴리오 준비" 카드/설명 없음 - 2026-09-02 사용자 확정).
-        # portfolio_pptx.generate()는 _proj_auto 여부와 무관하게 project_priority
-        # 만으로 동작하고, 원본 .pptx가 없으면(공개 데모 기본 상태) 자체적으로
-        # status="unavailable" + 안내 문구를 돌려주므로 호출을 _proj_auto로
-        # 막을 필요가 없다 - 실제 운영 화면과 동일하게 항상 노출한다.
         _dl = st.columns(2)
         with _dl[0]:
             _s4_pdf_download(result, skill_priority, project_priority)

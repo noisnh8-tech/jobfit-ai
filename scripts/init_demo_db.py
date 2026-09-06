@@ -12,11 +12,11 @@ scripts/init_demo_db.py — 공개 데모 DB(data/demo.db) 초기화 스크립�
     python scripts/init_demo_db.py
 
 무엇을 만드는가:
-  - candidate_jobs   : 공개 데모용 공고 4건(회사·직무·본문 전부 새로 작성 - 가상)
+  - candidate_jobs   : 공개 데모용 공고 8건(회사·직무·본문 전부 새로 작성 - 가상)
   - applications      : 공개 데모용 지원기록 4건(위 공고와 별개로 새로 작성 - 가상)
   - application_status_history
   - resume_understanding_cache : 가상 지원자 프로필 1건
-  - semantic_link_cache        : 공고 4건 × 가상 지원자 분석 결과(사전 계산)
+  - semantic_link_cache        : 공고 8건 × 가상 지원자 분석 결과(사전 계산)
   - preparation_sessions/events, collection_logs (화면이 비어 보이지 않게 소량)
   - data/last_resume/resume.pdf : 가상 지원자 이력서 PDF(자동 복원용, data/ 는 git 추적 제외)
   - recommendation_cache       : "공고 찾기" 후보 정렬 결과 1건(사전 계산, 아래 참고)
@@ -56,6 +56,7 @@ import json
 import shutil
 import sqlite3
 import sys
+from datetime import datetime
 from pathlib import Path
 
 _ROOT = Path(__file__).resolve().parent.parent
@@ -63,6 +64,7 @@ sys.path.insert(0, str(_ROOT))
 
 from resume_input.runtime_mode import DB_PATH, IS_DEMO  # noqa: E402
 from resume_input import job_store, application_manager, last_resume, recommendation_cache  # noqa: E402
+from resume_input import preparation_tracker  # noqa: E402
 from resume_input.quick_analysis import SCHEMA_VERSION  # noqa: E402
 from resume_input.understanding import RESUME_REPRESENTATION_VERSION  # noqa: E402
 
@@ -76,7 +78,7 @@ if not IS_DEMO:
 # resume_career.extract_user_career_level()이 자동으로 "신입"으로
 # 분류하고(§docstring 참고), "학력" 섹션의 "전문학사"는
 # resume_facts.extract_education()이 DEGREE_RANK 1로 인식한다(데모
-# 공고 4건 중 "4년제 대학교 학사 학위 이상 필수" 요건에 미달 - 실제
+# 데모 공고 중 "4년제 대학교 학사 학위 이상 필수" 요건에 미달 - 실제
 # judge_engine 재현 결과와 동일하게 유지하기 위한 의도적 설정).
 DEMO_RESUME_TEXT = """데모 지원자
 데이터 분석가
@@ -140,7 +142,7 @@ def verify_demo_resume_hash() -> None:
             "- DEMO_RESUME_TEXT를 바꿨다면 이 파일 상단의 DEMO_RESUME_HASH도 갱신할 것."
         )
 
-# ── 1) 데모 공고 4건 (회사명·직무명·본문 전부 새로 작성, 실제 채용공고 아님) ──
+# ── 1) 데모 공고 8건 (회사명·직무명·본문 전부 새로 작성, 실제 채용공고 아님) ──
 POSTINGS = [
     {
         "job_id": "demo-001", "company": "A커머스", "title": "데이터 분석가",
@@ -201,6 +203,71 @@ POSTINGS = [
             "- Python/SQL 활용 능력\n\n"
             "[우대사항]\n"
             "- 대용량 데이터 운영 경험"
+        ),
+        "judgment_expected": "미지원",
+    },
+    # ── 2026-09-07 추가(사용자 요청) - "공고 찾기" 화면에서 3건을 전부
+    # 지원완료/보류/제외로 넘기면 목록이 텅 비는 문제 대응. 실제 후보풀이
+    # 훨씬 크다는 걸 보여주기 위해 4건 추가(신입 3 + 경력 미달 1, 기존
+    # 001~004와 같은 비율). 전부 새로 작성한 가상 공고 - 실제 채용공고 아님.
+    {
+        "job_id": "demo-005", "company": "I소프트", "title": "데이터 분석가",
+        "career_level": "신입", "location": "서울",
+        "posting_text": (
+            "[담당업무]\n"
+            "- 서비스 핵심 지표 정의 및 대시보드 구축\n"
+            "- SQL/Python 기반 정기 리포트 자동화\n\n"
+            "[자격요건]\n"
+            "- SQL, Python을 활용한 데이터 분석 경험\n"
+            "- 데이터 기반으로 문제를 정의하고 해결한 경험\n\n"
+            "[우대사항]\n"
+            "- 대시보드 자동화 경험"
+        ),
+        "judgment_expected": "지원",
+    },
+    {
+        "job_id": "demo-006", "company": "J플랫폼", "title": "AI 프로덕트 매니저",
+        "career_level": "신입", "location": "서울",
+        "posting_text": (
+            "[담당업무]\n"
+            "- LLM 기반 신규 기능 기획 및 실험\n"
+            "- 사용자 피드백 기반 기능 개선\n\n"
+            "[자격요건]\n"
+            "- LLM/생성형 AI 활용 경험\n"
+            "- 아이디어를 실제 기능으로 구현한 경험\n\n"
+            "[우대사항]\n"
+            "- 자동화 워크플로 설계 경험"
+        ),
+        "judgment_expected": "지원",
+    },
+    {
+        "job_id": "demo-007", "company": "K스타트업", "title": "그로스 데이터 분석가",
+        "career_level": "1~3년", "location": "서울",
+        "posting_text": (
+            "[담당업무]\n"
+            "- 서비스 성장 지표 분석 및 실험 설계\n"
+            "- SQL/Python 기반 사용자 행동 데이터 분석\n\n"
+            "[자격요건]\n"
+            "- SQL, Python 데이터 분석 역량\n"
+            "- A/B 테스트 등 실험 설계 경험\n\n"
+            "[우대사항]\n"
+            "- 그로스 마케팅 도메인 경험"
+        ),
+        "judgment_expected": "보류",
+    },
+    {
+        "job_id": "demo-008", "company": "L테크", "title": "백엔드 데이터 엔지니어",
+        "career_level": "5년+", "location": "서울",
+        "posting_text": (
+            "[담당업무]\n"
+            "- 데이터 파이프라인 설계 및 운영\n"
+            "- 대용량 데이터 처리 시스템 구축\n\n"
+            "[자격요건]\n"
+            "- 관련 직무 경력 5년 이상 필수\n"
+            "- 4년제 대학교 학사 학위 이상 필수\n"
+            "- Python/SQL 활용 능력\n\n"
+            "[우대사항]\n"
+            "- 대용량 분산 처리 시스템 운영 경험"
         ),
         "judgment_expected": "미지원",
     },
@@ -315,6 +382,105 @@ ANALYSIS_RESULTS = {
             "skill_priority": ["SQL", "Python / Pandas", "Excel", "n8n", "Streamlit", "LLM / AI"],
         },
     },
+    "demo-005": {
+        "job_core": "서비스 핵심 지표를 정의하고 대시보드를 구축하며, SQL/Python 기반 리포트를 자동화하는 직무입니다.",
+        "role_context": {
+            "purpose": "핵심 지표 정의 및 리포트 자동화",
+            "domain": "데이터 분석",
+            "main_tasks": ["지표 정의", "대시보드 구축", "리포트 자동화"],
+            "important_capabilities": ["SQL/Python 분석", "자동화"],
+        },
+        "requirements": [
+            {"requirement": "SQL, Python을 활용한 데이터 분석 경험", "type": "skill",
+             "relation": "match", "gap_type": None, "short_label": "SQL·Python 데이터 분석",
+             "resume_evidence": "리워드 비용 최적화 전략 프로젝트에서 Python/Pandas·SQL로 지표를 설계·분석함"},
+            {"requirement": "데이터 기반으로 문제를 정의하고 해결한 경험", "type": "task",
+             "relation": "match", "gap_type": None, "short_label": "데이터 기반 문제 정의·해결",
+             "resume_evidence": "Airbnb 프로젝트에서 운영 요소별 수익 차이를 데이터로 진단하고 개선 전략을 도출함"},
+            {"requirement": "대시보드 자동화 경험 우대", "type": "task",
+             "relation": "partial", "gap_type": "experience_gap", "short_label": "대시보드 구현 경험으로 대체",
+             "resume_evidence": "Streamlit으로 의사결정 대시보드를 구현했으나 자동 리포트 발송 자동화 경험은 없음"},
+        ],
+        "resume_order": {
+            "project_priority": ["리워드 비용 최적화 전략", "서울 Airbnb 호스트 수익 최적화 가이드", "AI 기반 취업 의사결정 시스템"],
+            "skill_priority": ["SQL", "Python / Pandas", "Excel", "n8n", "Streamlit", "LLM / AI"],
+        },
+    },
+    "demo-006": {
+        "job_core": "LLM 기반 신규 기능을 기획·실험하고, 사용자 피드백을 반영해 기능을 개선하는 직무입니다.",
+        "role_context": {
+            "purpose": "LLM 기반 기능 기획 및 개선",
+            "domain": "AI 프로덕트",
+            "main_tasks": ["기능 기획", "실험", "피드백 반영 개선"],
+            "important_capabilities": ["LLM 활용", "기능 구현"],
+        },
+        "requirements": [
+            {"requirement": "LLM/생성형 AI 활용 경험", "type": "skill",
+             "relation": "match", "gap_type": None, "short_label": "LLM/생성형 AI 활용",
+             "resume_evidence": "LLM으로 채용공고 요구사항과 이력서 경험을 의미 단위로 연결하는 기능을 설계·구현함"},
+            {"requirement": "아이디어를 실제 기능으로 구현한 경험", "type": "task",
+             "relation": "match", "gap_type": None, "short_label": "아이디어의 기능 구현",
+             "resume_evidence": "채용공고 탐색부터 지원 판단까지 연결하는 개인 프로젝트를 기획부터 구현까지 직접 수행함"},
+            {"requirement": "자동화 워크플로 설계 경험 우대", "type": "task",
+             "relation": "match", "gap_type": None, "short_label": "업무 자동화 워크플로 설계",
+             "resume_evidence": "n8n으로 데이터 수집·처리·결과 반영 등 반복 업무를 자동화함"},
+        ],
+        "resume_order": {
+            "project_priority": ["AI 기반 취업 의사결정 시스템", "서울 Airbnb 호스트 수익 최적화 가이드", "리워드 비용 최적화 전략"],
+            "skill_priority": ["LLM / AI", "n8n", "Streamlit", "Python / Pandas", "SQL", "Excel"],
+        },
+    },
+    "demo-007": {
+        "job_core": "서비스 성장 지표를 분석하고 실험을 설계하는 직무입니다.",
+        "role_context": {
+            "purpose": "성장 지표 분석 및 실험 설계",
+            "domain": "그로스",
+            "main_tasks": ["지표 분석", "실험 설계", "사용자 행동 분석"],
+            "important_capabilities": ["SQL/Python 분석", "실험 설계"],
+        },
+        "requirements": [
+            {"requirement": "SQL, Python 데이터 분석 역량", "type": "skill",
+             "relation": "match", "gap_type": None, "short_label": "SQL·Python 분석 역량",
+             "resume_evidence": "Python/Pandas/SQL 기반 데이터 분석 프로젝트 다수 수행"},
+            {"requirement": "A/B 테스트 등 실험 설계 경험", "type": "task",
+             "relation": "partial", "gap_type": "experience_gap", "short_label": "그룹 비교 시뮬레이션 경험으로 대체",
+             "resume_evidence": "formal A/B 테스트 실행 경험은 없으나, Starbucks 프로젝트에서 그룹 비교·시뮬레이션 방식으로 효과를 검증함"},
+            {"requirement": "그로스 마케팅 도메인 경험 우대", "type": "domain",
+             "relation": "partial", "gap_type": "domain_gap", "short_label": "그로스 도메인 신규",
+             "resume_evidence": "그로스 마케팅 도메인 실무 경험은 없으나 유사한 사용자 행동 데이터 분석 경험 보유"},
+        ],
+        "resume_order": {
+            "project_priority": ["리워드 비용 최적화 전략", "서울 Airbnb 호스트 수익 최적화 가이드", "AI 기반 취업 의사결정 시스템"],
+            "skill_priority": ["SQL", "Python / Pandas", "Excel", "LLM / AI", "n8n", "Streamlit"],
+        },
+    },
+    "demo-008": {
+        "job_core": "데이터 파이프라인을 설계하고 대용량 데이터 처리 시스템을 구축하는 직무입니다.",
+        "role_context": {
+            "purpose": "데이터 파이프라인 설계 및 구축",
+            "domain": "데이터 엔지니어링",
+            "main_tasks": ["파이프라인 설계", "대용량 처리 시스템 구축"],
+            "important_capabilities": ["Python/SQL 활용", "5년 이상 실무 경력"],
+        },
+        "requirements": [
+            {"requirement": "데이터 파이프라인 설계 및 구축 경험", "type": "task",
+             "relation": "partial", "gap_type": "experience_gap", "short_label": "소규모 파이프라인 구현 경험으로 대체",
+             "resume_evidence": "n8n으로 데이터 수집·처리 파이프라인을 구성한 경험은 있으나 대용량 처리 시스템 구축 경험은 없음"},
+            {"requirement": "데이터 분석 도구(Python/SQL) 활용 능력", "type": "skill",
+             "relation": "match", "gap_type": None, "short_label": "Python·SQL 활용",
+             "resume_evidence": "Python/SQL 기반 분석 프로젝트 다수 수행"},
+            {"requirement": "관련 직무 경력 5년 이상 필수", "type": "experience",
+             "relation": "no_match", "gap_type": "experience_gap", "short_label": None,
+             "resume_evidence": None},
+            {"requirement": "4년제 대학교 학사 학위 이상 필수", "type": "qualification",
+             "relation": "no_match", "gap_type": "qualification_gap", "short_label": None,
+             "resume_evidence": None},
+        ],
+        "resume_order": {
+            "project_priority": ["리워드 비용 최적화 전략", "서울 Airbnb 호스트 수익 최적화 가이드", "AI 기반 취업 의사결정 시스템"],
+            "skill_priority": ["SQL", "Python / Pandas", "Excel", "n8n", "Streamlit", "LLM / AI"],
+        },
+    },
 }
 
 # ── 2) 데모 지원 기록 4건 - 위 공고와는 완전히 별개로 새로 작성 ──
@@ -326,13 +492,17 @@ ANALYSIS_RESULTS = {
 # 공고 목록과 독립적인 완전히 새 예시라는 요구사항과도 일치).
 APPLICATIONS = [
     {"job_id": "demo-app-001", "company": "E커머스", "title": "데이터 분석가", "status": "지원 완료",
-     "memo": "데모 예시 - 실제 지원 기록 아님", "source": "demo"},
+     "memo": "데모 예시 - 실제 지원 기록 아님", "source": "demo",
+     "elapsed_seconds": 210, "cover_letter": False},
     {"job_id": "demo-app-002", "company": "F테크", "title": "AI 서비스 기획", "status": "서류 진행",
-     "memo": "데모 예시 - 실제 지원 기록 아님", "source": "demo"},
+     "memo": "데모 예시 - 실제 지원 기록 아님", "source": "demo",
+     "elapsed_seconds": 310, "cover_letter": True},
     {"job_id": "demo-app-003", "company": "G플랫폼", "title": "Product Analyst", "status": "면접",
-     "memo": "데모 예시 - 실제 지원 기록 아님", "source": "demo"},
+     "memo": "데모 예시 - 실제 지원 기록 아님", "source": "demo",
+     "elapsed_seconds": 240, "cover_letter": False},
     {"job_id": "demo-app-004", "company": "H서비스", "title": "데이터 운영", "status": "불합격",
-     "memo": "데모 예시 - 실제 지원 기록 아님", "source": "demo"},
+     "memo": "데모 예시 - 실제 지원 기록 아님", "source": "demo",
+     "elapsed_seconds": 285, "cover_letter": True},
 ]
 
 # ── 2-1) "공고 찾기" 후보 정렬 사전 계산 결과 (§모듈 docstring 참고) ──
@@ -343,65 +513,337 @@ _PRECOMPUTED_RECOMMENDATION_JSON = r"""
 {
   "candidates": [
     {
-      "job_id": "demo-002", "title": "AI 서비스 기획", "company": "B테크",
-      "url": "https://example.com/jobs/demo-002", "source": "기업 홈페이지", "origin": "demo",
+      "job_id": "demo-002",
+      "title": "AI 서비스 기획",
+      "company": "B테크",
+      "url": "https://example.com/jobs/demo-002",
+      "source": "기업 홈페이지",
+      "origin": "demo",
       "posting_text": "[담당업무]\n- LLM 기반 신규 기능 기획 및 실험 설계\n- 반복 업무 자동화를 위한 워크플로 설계·운영\n\n[자격요건]\n- LLM/생성형 AI에 대한 이해와 실제 적용 경험\n- 문제 정의부터 기능 설계까지 주도적으로 수행한 경험\n\n[우대사항]\n- 기획 직무 실무 경력",
-      "career_level": "신입", "career_level_confidence": "high", "career_parser_version": "demo-seed-v1",
-      "career_parsed_at": "2026-09-06 18:00:30", "industry": "IT/서비스", "company_size": "중견",
-      "location": "서울", "jd_context": null, "jd_short_semantic": null, "jd_semantic_graph": null,
-      "representation_version": null, "representation_generated_at": null, "link_dead": 0,
-      "link_checked_at": null, "created_at": "2026-09-06 18:00:30", "synced_at": "2026-09-06 18:00:30",
-      "jd_semantic_objects": null, "jd_relations": null, "jd_summary": null, "deadline_expired": 0,
-      "deadline_checked_at": null, "posting_hash": null, "semantic_object_regen_attempted": 0,
-      "m3_source": "rule", "m4_source": "rule", "combined_score": 0.6950837930250366,
-      "score_source": "meaning_matching", "combined_score_before_constraint": 0.6950837930250366,
+      "career_level": "신입",
+      "career_level_confidence": "high",
+      "career_parser_version": "demo-seed-v1",
+      "career_parsed_at": "2026-09-06 19:18:04",
+      "industry": "IT/서비스",
+      "company_size": "중견",
+      "location": "서울",
+      "jd_context": null,
+      "jd_short_semantic": null,
+      "jd_semantic_graph": null,
+      "representation_version": null,
+      "representation_generated_at": null,
+      "link_dead": 0,
+      "link_checked_at": null,
+      "created_at": "2026-09-06 19:18:04",
+      "synced_at": "2026-09-06 19:18:04",
+      "jd_semantic_objects": null,
+      "jd_relations": null,
+      "jd_summary": null,
+      "deadline_expired": 0,
+      "deadline_checked_at": null,
+      "posting_hash": null,
+      "semantic_object_regen_attempted": 0,
+      "m3_source": "rule",
+      "m4_source": "rule",
+      "combined_score": 0.7327883763920299,
+      "score_source": "meaning_matching",
+      "combined_score_before_constraint": 0.7327883763920299,
       "constraint_penalty": 0.0,
-      "constraint_debug": {"career_level": "신입", "career_status": "적합", "career_penalty": 0.0},
-      "matched_keywords": ["ai", "기반", "운영", "llm", "설계"],
-      "career_status": "적합", "career_reason": "신입 사용자이며 공고는 신입 경력을 요구합니다."
+      "constraint_debug": {
+        "career_level": "신입",
+        "career_status": "적합",
+        "career_penalty": 0.0
+      },
+      "matched_keywords": [
+        "ai",
+        "기반",
+        "운영",
+        "llm",
+        "설계"
+      ],
+      "career_status": "적합",
+      "career_reason": "신입 사용자이며 공고는 신입 경력을 요구합니다."
     },
     {
-      "job_id": "demo-003", "title": "Product Analyst", "company": "C플랫폼",
-      "url": "https://example.com/jobs/demo-003", "source": "기업 홈페이지", "origin": "demo",
+      "job_id": "demo-005",
+      "title": "데이터 분석가",
+      "company": "I소프트",
+      "url": "https://example.com/jobs/demo-005",
+      "source": "기업 홈페이지",
+      "origin": "demo",
+      "posting_text": "[담당업무]\n- 서비스 핵심 지표 정의 및 대시보드 구축\n- SQL/Python 기반 정기 리포트 자동화\n\n[자격요건]\n- SQL, Python을 활용한 데이터 분석 경험\n- 데이터 기반으로 문제를 정의하고 해결한 경험\n\n[우대사항]\n- 대시보드 자동화 경험",
+      "career_level": "신입",
+      "career_level_confidence": "high",
+      "career_parser_version": "demo-seed-v1",
+      "career_parsed_at": "2026-09-06 19:18:04",
+      "industry": "IT/서비스",
+      "company_size": "중견",
+      "location": "서울",
+      "jd_context": null,
+      "jd_short_semantic": null,
+      "jd_semantic_graph": null,
+      "representation_version": null,
+      "representation_generated_at": null,
+      "link_dead": 0,
+      "link_checked_at": null,
+      "created_at": "2026-09-06 19:18:04",
+      "synced_at": "2026-09-06 19:18:04",
+      "jd_semantic_objects": null,
+      "jd_relations": null,
+      "jd_summary": null,
+      "deadline_expired": 0,
+      "deadline_checked_at": null,
+      "posting_hash": null,
+      "semantic_object_regen_attempted": 0,
+      "m3_source": "rule",
+      "m4_source": "rule",
+      "combined_score": 0.45532816236517076,
+      "score_source": "meaning_matching",
+      "combined_score_before_constraint": 0.45532816236517076,
+      "constraint_penalty": 0.0,
+      "constraint_debug": {
+        "career_level": "신입",
+        "career_status": "적합",
+        "career_penalty": 0.0
+      },
+      "matched_keywords": [
+        "데이터",
+        "분석",
+        "기반",
+        "python",
+        "sql",
+        "대시보드"
+      ],
+      "career_status": "적합",
+      "career_reason": "신입 사용자이며 공고는 신입 경력을 요구합니다."
+    },
+    {
+      "job_id": "demo-007",
+      "title": "그로스 데이터 분석가",
+      "company": "K스타트업",
+      "url": "https://example.com/jobs/demo-007",
+      "source": "기업 홈페이지",
+      "origin": "demo",
+      "posting_text": "[담당업무]\n- 서비스 성장 지표 분석 및 실험 설계\n- SQL/Python 기반 사용자 행동 데이터 분석\n\n[자격요건]\n- SQL, Python 데이터 분석 역량\n- A/B 테스트 등 실험 설계 경험\n\n[우대사항]\n- 그로스 마케팅 도메인 경험",
+      "career_level": "1~3년",
+      "career_level_confidence": "high",
+      "career_parser_version": "demo-seed-v1",
+      "career_parsed_at": "2026-09-06 19:18:04",
+      "industry": "IT/서비스",
+      "company_size": "중견",
+      "location": "서울",
+      "jd_context": null,
+      "jd_short_semantic": null,
+      "jd_semantic_graph": null,
+      "representation_version": null,
+      "representation_generated_at": null,
+      "link_dead": 0,
+      "link_checked_at": null,
+      "created_at": "2026-09-06 19:18:04",
+      "synced_at": "2026-09-06 19:18:04",
+      "jd_semantic_objects": null,
+      "jd_relations": null,
+      "jd_summary": null,
+      "deadline_expired": 0,
+      "deadline_checked_at": null,
+      "posting_hash": null,
+      "semantic_object_regen_attempted": 0,
+      "m3_source": "rule",
+      "m4_source": "rule",
+      "combined_score": -0.5177641006905144,
+      "score_source": "meaning_matching",
+      "combined_score_before_constraint": -0.017764100690514352,
+      "constraint_penalty": -0.5,
+      "constraint_debug": {
+        "career_level": "1~3년",
+        "career_status": "약간상향",
+        "career_penalty": -0.5
+      },
+      "matched_keywords": [
+        "데이터",
+        "분석",
+        "기반",
+        "python",
+        "sql",
+        "행동",
+        "설계"
+      ],
+      "career_status": "약간상향",
+      "career_reason": "신입 사용자이며 공고는 1~3년 경력을 요구합니다."
+    },
+    {
+      "job_id": "demo-003",
+      "title": "Product Analyst",
+      "company": "C플랫폼",
+      "url": "https://example.com/jobs/demo-003",
+      "source": "기업 홈페이지",
+      "origin": "demo",
       "posting_text": "[담당업무]\n- 프로덕트 지표 분석 및 실험(A/B 테스트) 설계\n- SQL/Python 기반 데이터 분석\n\n[자격요건]\n- SQL, Python 데이터 분석 역량\n- 실험 설계 및 결과 해석 경험\n\n[우대사항]\n- 영어 커뮤니케이션 가능자 우대(TOEIC 700점 이상)",
-      "career_level": "1~3년", "career_level_confidence": "high", "career_parser_version": "demo-seed-v1",
-      "career_parsed_at": "2026-09-06 18:00:30", "industry": "IT/서비스", "company_size": "중견",
-      "location": "서울", "jd_context": null, "jd_short_semantic": null, "jd_semantic_graph": null,
-      "representation_version": null, "representation_generated_at": null, "link_dead": 0,
-      "link_checked_at": null, "created_at": "2026-09-06 18:00:30", "synced_at": "2026-09-06 18:00:30",
-      "jd_semantic_objects": null, "jd_relations": null, "jd_summary": null, "deadline_expired": 0,
-      "deadline_checked_at": null, "posting_hash": null, "semantic_object_regen_attempted": 0,
-      "m3_source": "rule", "m4_source": "rule", "combined_score": -0.7350977557878242,
-      "score_source": "meaning_matching", "combined_score_before_constraint": -0.2350977557878242,
+      "career_level": "1~3년",
+      "career_level_confidence": "high",
+      "career_parser_version": "demo-seed-v1",
+      "career_parsed_at": "2026-09-06 19:18:04",
+      "industry": "IT/서비스",
+      "company_size": "중견",
+      "location": "서울",
+      "jd_context": null,
+      "jd_short_semantic": null,
+      "jd_semantic_graph": null,
+      "representation_version": null,
+      "representation_generated_at": null,
+      "link_dead": 0,
+      "link_checked_at": null,
+      "created_at": "2026-09-06 19:18:04",
+      "synced_at": "2026-09-06 19:18:04",
+      "jd_semantic_objects": null,
+      "jd_relations": null,
+      "jd_summary": null,
+      "deadline_expired": 0,
+      "deadline_checked_at": null,
+      "posting_hash": null,
+      "semantic_object_regen_attempted": 0,
+      "m3_source": "rule",
+      "m4_source": "rule",
+      "combined_score": -0.5764021046682192,
+      "score_source": "meaning_matching",
+      "combined_score_before_constraint": -0.07640210466821917,
       "constraint_penalty": -0.5,
-      "constraint_debug": {"career_level": "1~3년", "career_status": "약간상향", "career_penalty": -0.5},
-      "matched_keywords": ["데이터", "기반", "분석", "python", "sql", "결과", "설계"],
-      "career_status": "약간상향", "career_reason": "신입 사용자이며 공고는 1~3년 경력을 요구합니다."
+      "constraint_debug": {
+        "career_level": "1~3년",
+        "career_status": "약간상향",
+        "career_penalty": -0.5
+      },
+      "matched_keywords": [
+        "데이터",
+        "기반",
+        "분석",
+        "python",
+        "sql",
+        "결과",
+        "설계"
+      ],
+      "career_status": "약간상향",
+      "career_reason": "신입 사용자이며 공고는 1~3년 경력을 요구합니다."
     },
     {
-      "job_id": "demo-001", "title": "데이터 분석가", "company": "A커머스",
-      "url": "https://example.com/jobs/demo-001", "source": "기업 홈페이지", "origin": "demo",
+      "job_id": "demo-001",
+      "title": "데이터 분석가",
+      "company": "A커머스",
+      "url": "https://example.com/jobs/demo-001",
+      "source": "기업 홈페이지",
+      "origin": "demo",
       "posting_text": "[담당업무]\n- 커머스 서비스 지표(구매전환/리텐션 등) 분석 및 대시보드 운영\n- SQL/Python 기반 데이터 추출·가공 및 정기 리포트 작성\n\n[자격요건]\n- SQL, Python 활용 데이터 분석 경험\n- 통계적 가설 검정에 대한 이해\n\n[우대사항]\n- 이커머스 도메인 실무 경험\n- 대시보드/시각화 도구 활용 경험",
-      "career_level": "1~3년", "career_level_confidence": "high", "career_parser_version": "demo-seed-v1",
-      "career_parsed_at": "2026-09-06 18:00:30", "industry": "IT/서비스", "company_size": "중견",
-      "location": "서울", "jd_context": null, "jd_short_semantic": null, "jd_semantic_graph": null,
-      "representation_version": null, "representation_generated_at": null, "link_dead": 0,
-      "link_checked_at": null, "created_at": "2026-09-06 18:00:30", "synced_at": "2026-09-06 18:00:30",
-      "jd_semantic_objects": null, "jd_relations": null, "jd_summary": null, "deadline_expired": 0,
-      "deadline_checked_at": null, "posting_hash": null, "semantic_object_regen_attempted": 0,
-      "m3_source": "rule", "m4_source": "rule", "combined_score": -0.9599860372372109,
-      "score_source": "meaning_matching", "combined_score_before_constraint": -0.45998603723721093,
+      "career_level": "1~3년",
+      "career_level_confidence": "high",
+      "career_parser_version": "demo-seed-v1",
+      "career_parsed_at": "2026-09-06 19:18:04",
+      "industry": "IT/서비스",
+      "company_size": "중견",
+      "location": "서울",
+      "jd_context": null,
+      "jd_short_semantic": null,
+      "jd_semantic_graph": null,
+      "representation_version": null,
+      "representation_generated_at": null,
+      "link_dead": 0,
+      "link_checked_at": null,
+      "created_at": "2026-09-06 19:18:04",
+      "synced_at": "2026-09-06 19:18:04",
+      "jd_semantic_objects": null,
+      "jd_relations": null,
+      "jd_summary": null,
+      "deadline_expired": 0,
+      "deadline_checked_at": null,
+      "posting_hash": null,
+      "semantic_object_regen_attempted": 0,
+      "m3_source": "rule",
+      "m4_source": "rule",
+      "combined_score": -0.7720385983001232,
+      "score_source": "meaning_matching",
+      "combined_score_before_constraint": -0.2720385983001233,
       "constraint_penalty": -0.5,
-      "constraint_debug": {"career_level": "1~3년", "career_status": "약간상향", "career_penalty": -0.5},
-      "matched_keywords": ["데이터", "분석", "기반", "운영", "python", "sql", "대시보드"],
-      "career_status": "약간상향", "career_reason": "신입 사용자이며 공고는 1~3년 경력을 요구합니다."
+      "constraint_debug": {
+        "career_level": "1~3년",
+        "career_status": "약간상향",
+        "career_penalty": -0.5
+      },
+      "matched_keywords": [
+        "데이터",
+        "분석",
+        "기반",
+        "운영",
+        "python",
+        "sql",
+        "대시보드"
+      ],
+      "career_status": "약간상향",
+      "career_reason": "신입 사용자이며 공고는 1~3년 경력을 요구합니다."
+    },
+    {
+      "job_id": "demo-006",
+      "title": "AI 프로덕트 매니저",
+      "company": "J플랫폼",
+      "url": "https://example.com/jobs/demo-006",
+      "source": "기업 홈페이지",
+      "origin": "demo",
+      "posting_text": "[담당업무]\n- LLM 기반 신규 기능 기획 및 실험\n- 사용자 피드백 기반 기능 개선\n\n[자격요건]\n- LLM/생성형 AI 활용 경험\n- 아이디어를 실제 기능으로 구현한 경험\n\n[우대사항]\n- 자동화 워크플로 설계 경험",
+      "career_level": "신입",
+      "career_level_confidence": "high",
+      "career_parser_version": "demo-seed-v1",
+      "career_parsed_at": "2026-09-06 19:18:04",
+      "industry": "IT/서비스",
+      "company_size": "중견",
+      "location": "서울",
+      "jd_context": null,
+      "jd_short_semantic": null,
+      "jd_semantic_graph": null,
+      "representation_version": null,
+      "representation_generated_at": null,
+      "link_dead": 0,
+      "link_checked_at": null,
+      "created_at": "2026-09-06 19:18:04",
+      "synced_at": "2026-09-06 19:18:04",
+      "jd_semantic_objects": null,
+      "jd_relations": null,
+      "jd_summary": null,
+      "deadline_expired": 0,
+      "deadline_checked_at": null,
+      "posting_hash": null,
+      "semantic_object_regen_attempted": 0,
+      "m3_source": "rule",
+      "m4_source": "rule",
+      "combined_score": -0.8219117350983438,
+      "score_source": "meaning_matching",
+      "combined_score_before_constraint": -0.8219117350983438,
+      "constraint_penalty": 0.0,
+      "constraint_debug": {
+        "career_level": "신입",
+        "career_status": "적합",
+        "career_penalty": 0.0
+      },
+      "matched_keywords": [
+        "ai",
+        "기반",
+        "llm",
+        "설계"
+      ],
+      "career_status": "적합",
+      "career_reason": "신입 사용자이며 공고는 신입 경력을 요구합니다."
     }
   ],
   "stats": {
-    "total_before_filter": 4, "after_career_filter": 3, "excluded_applied_count": 0,
-    "excluded_dismissed_count": 0, "returned_count": 3,
-    "career_status_distribution": {"적합": 1, "약간상향": 2},
-    "source_distribution": {"기업 홈페이지": 3}
+    "total_before_filter": 8,
+    "after_career_filter": 6,
+    "excluded_applied_count": 0,
+    "excluded_dismissed_count": 0,
+    "returned_count": 6,
+    "career_status_distribution": {
+      "적합": 3,
+      "약간상향": 3
+    },
+    "source_distribution": {
+      "기업 홈페이지": 6
+    }
   }
 }
 """
@@ -489,6 +931,14 @@ def _seed_semantic_link_cache() -> None:
 
 
 def _seed_applications() -> None:
+    # 2026-09-07(사용자 요청) - "지원 KPI" expander(§_render_s7_kpi)가 읽는
+    # preparation_sessions 도 같이 시드한다. 이게 없으면 데모는 소요시간
+    # 전부 "-"로 빈 상태였다 - 실 사용 데이터 기준으로 3~5분대(자소서
+    # 포함 건은 5분 내외)가 나온다는 걸 보여주기 위한 값이며, 새 측정
+    # 로직/이벤트는 추가하지 않고 preparation_tracker의 기존 테이블에
+    # 결과값만 직접 채운다.
+    preparation_tracker._init_tables(DB_PATH)
+    now = datetime.now().isoformat(timespec="seconds")
     for a in APPLICATIONS:
         app_id = application_manager.add_application(
             job_id=a["job_id"], company=a["company"], title=a["title"],
@@ -498,7 +948,22 @@ def _seed_applications() -> None:
         if a["status"] != "지원 완료":
             # 상태가 더 진행된 건은 두 번째 이력을 남겨 전형 진행 타임라인을 보여준다.
             application_manager.update_status(app_id, a["status"], memo=a["memo"])
-    print(f"applications: {len(APPLICATIONS)}건 시드 완료")
+        # add_application/update_status가 각자 자체 커넥션을 열고 닫으므로,
+        # 이 커넥션도 매 건마다 새로 열고 바로 닫는다("database is locked" 방지).
+        conn = sqlite3.connect(DB_PATH)
+        conn.execute(
+            """
+            INSERT INTO preparation_sessions
+                (job_id, application_id, started_at, completed_at, elapsed_seconds,
+                 analysis_used, customization_used, cover_letter_source_used,
+                 manual_action_count, system_action_count, judgment, judgment_reason)
+            VALUES (?, ?, ?, ?, ?, 1, 1, ?, 3, 2, '지원', NULL)
+            """,
+            (a["job_id"], app_id, now, now, a["elapsed_seconds"], int(a["cover_letter"])),
+        )
+        conn.commit()
+        conn.close()
+    print(f"applications: {len(APPLICATIONS)}건 시드 완료(preparation_sessions 포함)")
 
 
 def _seed_last_resume() -> None:
