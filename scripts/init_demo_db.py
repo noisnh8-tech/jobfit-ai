@@ -19,6 +19,21 @@ scripts/init_demo_db.py — 공개 데모 DB(data/demo.db) 초기화 스크립�
   - semantic_link_cache        : 공고 4건 × 가상 지원자 분석 결과(사전 계산)
   - preparation_sessions/events, collection_logs (화면이 비어 보이지 않게 소량)
   - data/last_resume/resume.pdf : 가상 지원자 이력서 PDF(자동 복원용, data/ 는 git 추적 제외)
+  - recommendation_cache       : "공고 찾기" 후보 정렬 결과 1건(사전 계산, 아래 참고)
+
+**recommendation_cache를 미리 채워두는 이유(2026-09-07)**: "공고 찾기"는
+로컬 MiniLM 임베딩 모델을 실시간으로 로드해 후보를 정렬한다
+(`resume_input/candidate_search.py: _load_embedding_model()`). 이 모델은
+`local_files_only=True`가 기본이라 로컬 캐시가 있는 개발 환경에서는
+바로 동작하지만, Streamlit Community Cloud처럼 그 캐시가 전혀 없는
+배포 컨테이너에서는 최초 1회 온라인 다운로드가 필요하다 - 실측 결과
+그 배포 환경에서 huggingface.co 접속 자체가 막혀 있어(`[공고 검색 오류]
+We couldn't connect to 'https://huggingface.co'...`) 다운로드도 실패했다.
+이력서 이해/공고 분석 결과가 이미 사전 계산돼 있는 것과 같은 원칙으로,
+"공고 찾기" 결과도 이 스크립트가 미리 계산해 `recommendation_cache`에
+넣어두면 배포 환경에서 임베딩 모델을 아예 로드하지 않고도 화면이
+정상 동작한다(같은 이력서·후보 조합이면 캐시를 그대로 재사용하는
+정상 캐시 히트 경로 - 새 로직이 아니다).
 
 공고·회사·직무·지원기록·결과·이력서 전부 이 스크립트에서 처음부터 새로
 작성한 가상 데이터다(2026-09-06 방침 변경 - 실제 이력서 파일은 더 이상
@@ -47,7 +62,7 @@ _ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_ROOT))
 
 from resume_input.runtime_mode import DB_PATH, IS_DEMO  # noqa: E402
-from resume_input import job_store, application_manager, last_resume  # noqa: E402
+from resume_input import job_store, application_manager, last_resume, recommendation_cache  # noqa: E402
 from resume_input.quick_analysis import SCHEMA_VERSION  # noqa: E402
 from resume_input.understanding import RESUME_REPRESENTATION_VERSION  # noqa: E402
 
@@ -320,6 +335,78 @@ APPLICATIONS = [
      "memo": "데모 예시 - 실제 지원 기록 아님", "source": "demo"},
 ]
 
+# ── 2-1) "공고 찾기" 후보 정렬 사전 계산 결과 (§모듈 docstring 참고) ──
+# 이 저장소를 로컬(모델 캐시 있는 환경)에서 그대로 실행해
+# pipeline.run_recommendation_mode(가상 이력서, "신입", False)를 1회 호출한
+# 실제 결과를 그대로 옮긴 것 - 점수·판단 로직을 새로 만들지 않았다.
+_PRECOMPUTED_RECOMMENDATION_JSON = r"""
+{
+  "candidates": [
+    {
+      "job_id": "demo-002", "title": "AI 서비스 기획", "company": "B테크",
+      "url": "https://example.com/jobs/demo-002", "source": "기업 홈페이지", "origin": "demo",
+      "posting_text": "[담당업무]\n- LLM 기반 신규 기능 기획 및 실험 설계\n- 반복 업무 자동화를 위한 워크플로 설계·운영\n\n[자격요건]\n- LLM/생성형 AI에 대한 이해와 실제 적용 경험\n- 문제 정의부터 기능 설계까지 주도적으로 수행한 경험\n\n[우대사항]\n- 기획 직무 실무 경력",
+      "career_level": "신입", "career_level_confidence": "high", "career_parser_version": "demo-seed-v1",
+      "career_parsed_at": "2026-09-06 18:00:30", "industry": "IT/서비스", "company_size": "중견",
+      "location": "서울", "jd_context": null, "jd_short_semantic": null, "jd_semantic_graph": null,
+      "representation_version": null, "representation_generated_at": null, "link_dead": 0,
+      "link_checked_at": null, "created_at": "2026-09-06 18:00:30", "synced_at": "2026-09-06 18:00:30",
+      "jd_semantic_objects": null, "jd_relations": null, "jd_summary": null, "deadline_expired": 0,
+      "deadline_checked_at": null, "posting_hash": null, "semantic_object_regen_attempted": 0,
+      "m3_source": "rule", "m4_source": "rule", "combined_score": 0.6950837930250366,
+      "score_source": "meaning_matching", "combined_score_before_constraint": 0.6950837930250366,
+      "constraint_penalty": 0.0,
+      "constraint_debug": {"career_level": "신입", "career_status": "적합", "career_penalty": 0.0},
+      "matched_keywords": ["ai", "기반", "운영", "llm", "설계"],
+      "career_status": "적합", "career_reason": "신입 사용자이며 공고는 신입 경력을 요구합니다."
+    },
+    {
+      "job_id": "demo-003", "title": "Product Analyst", "company": "C플랫폼",
+      "url": "https://example.com/jobs/demo-003", "source": "기업 홈페이지", "origin": "demo",
+      "posting_text": "[담당업무]\n- 프로덕트 지표 분석 및 실험(A/B 테스트) 설계\n- SQL/Python 기반 데이터 분석\n\n[자격요건]\n- SQL, Python 데이터 분석 역량\n- 실험 설계 및 결과 해석 경험\n\n[우대사항]\n- 영어 커뮤니케이션 가능자 우대(TOEIC 700점 이상)",
+      "career_level": "1~3년", "career_level_confidence": "high", "career_parser_version": "demo-seed-v1",
+      "career_parsed_at": "2026-09-06 18:00:30", "industry": "IT/서비스", "company_size": "중견",
+      "location": "서울", "jd_context": null, "jd_short_semantic": null, "jd_semantic_graph": null,
+      "representation_version": null, "representation_generated_at": null, "link_dead": 0,
+      "link_checked_at": null, "created_at": "2026-09-06 18:00:30", "synced_at": "2026-09-06 18:00:30",
+      "jd_semantic_objects": null, "jd_relations": null, "jd_summary": null, "deadline_expired": 0,
+      "deadline_checked_at": null, "posting_hash": null, "semantic_object_regen_attempted": 0,
+      "m3_source": "rule", "m4_source": "rule", "combined_score": -0.7350977557878242,
+      "score_source": "meaning_matching", "combined_score_before_constraint": -0.2350977557878242,
+      "constraint_penalty": -0.5,
+      "constraint_debug": {"career_level": "1~3년", "career_status": "약간상향", "career_penalty": -0.5},
+      "matched_keywords": ["데이터", "기반", "분석", "python", "sql", "결과", "설계"],
+      "career_status": "약간상향", "career_reason": "신입 사용자이며 공고는 1~3년 경력을 요구합니다."
+    },
+    {
+      "job_id": "demo-001", "title": "데이터 분석가", "company": "A커머스",
+      "url": "https://example.com/jobs/demo-001", "source": "기업 홈페이지", "origin": "demo",
+      "posting_text": "[담당업무]\n- 커머스 서비스 지표(구매전환/리텐션 등) 분석 및 대시보드 운영\n- SQL/Python 기반 데이터 추출·가공 및 정기 리포트 작성\n\n[자격요건]\n- SQL, Python 활용 데이터 분석 경험\n- 통계적 가설 검정에 대한 이해\n\n[우대사항]\n- 이커머스 도메인 실무 경험\n- 대시보드/시각화 도구 활용 경험",
+      "career_level": "1~3년", "career_level_confidence": "high", "career_parser_version": "demo-seed-v1",
+      "career_parsed_at": "2026-09-06 18:00:30", "industry": "IT/서비스", "company_size": "중견",
+      "location": "서울", "jd_context": null, "jd_short_semantic": null, "jd_semantic_graph": null,
+      "representation_version": null, "representation_generated_at": null, "link_dead": 0,
+      "link_checked_at": null, "created_at": "2026-09-06 18:00:30", "synced_at": "2026-09-06 18:00:30",
+      "jd_semantic_objects": null, "jd_relations": null, "jd_summary": null, "deadline_expired": 0,
+      "deadline_checked_at": null, "posting_hash": null, "semantic_object_regen_attempted": 0,
+      "m3_source": "rule", "m4_source": "rule", "combined_score": -0.9599860372372109,
+      "score_source": "meaning_matching", "combined_score_before_constraint": -0.45998603723721093,
+      "constraint_penalty": -0.5,
+      "constraint_debug": {"career_level": "1~3년", "career_status": "약간상향", "career_penalty": -0.5},
+      "matched_keywords": ["데이터", "분석", "기반", "운영", "python", "sql", "대시보드"],
+      "career_status": "약간상향", "career_reason": "신입 사용자이며 공고는 1~3년 경력을 요구합니다."
+    }
+  ],
+  "stats": {
+    "total_before_filter": 4, "after_career_filter": 3, "excluded_applied_count": 0,
+    "excluded_dismissed_count": 0, "returned_count": 3,
+    "career_status_distribution": {"적합": 1, "약간상향": 2},
+    "source_distribution": {"기업 홈페이지": 3}
+  }
+}
+"""
+PRECOMPUTED_RECOMMENDATION = json.loads(_PRECOMPUTED_RECOMMENDATION_JSON)
+
 # ── 3) 가상 지원자 이력서 이해 캐시 (프로젝트명·요약은 README/포트폴리오에
 #      공개된 내용만 재사용 - 개인정보 아님, §모듈 docstring 참고) ──
 RESUME_SEMANTIC_OBJECTS = [
@@ -445,6 +532,17 @@ def _seed_collection_log() -> None:
     print("collection_logs: 1건 시드 완료(마지막 업데이트 표시용)")
 
 
+def _seed_recommendation_cache() -> None:
+    """§모듈 docstring 참고 - 사전 계산된 "공고 찾기" 결과를 실제 캐시
+    조회 경로(app.py)가 쓰는 것과 동일한 cache_key/collection_stamp
+    형식으로 저장한다. _seed_collection_log() 이후에 호출해야
+    last_collection_date_kst()가 방금 넣은 로그를 그대로 읽는다."""
+    db_key = f"{DEMO_RESUME_HASH}|신입|False"
+    cache_stamp = recommendation_cache.last_collection_date_kst()
+    recommendation_cache.save(db_key, cache_stamp, PRECOMPUTED_RECOMMENDATION)
+    print("recommendation_cache: 1건 시드 완료(공고 찾기 사전 계산 결과)")
+
+
 def _seed_company_research_table() -> None:
     # job_store.get_company_research()는 이 테이블이 이미 있다고 가정한다
     # (운영 DB에는 반자동 리서치로 이미 만들어져 있음). 데모 DB에는 그
@@ -470,6 +568,7 @@ def main() -> None:
     _seed_applications()
     _seed_last_resume()
     _seed_collection_log()
+    _seed_recommendation_cache()
     _seed_company_research_table()
     print(f"\n완료: {DB_PATH}")
 
