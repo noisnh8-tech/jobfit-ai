@@ -93,6 +93,16 @@ inject_theme()
 
 from resume_input.runtime_mode import IS_DEMO, DEMO_BANNER_TEXT  # noqa: E402
 
+if IS_DEMO:
+    # 배포 환경(Streamlit Community Cloud 등)은 clone 직후 첫 실행이라
+    # data/demo.db가 아직 없다 - 별도 배포 전 명령을 실행할 방법이 없으므로
+    # 데모 모드에서만, DB 파일이 없을 때 1회 자동 생성한다(IS_DEMO 게이트라
+    # 운영 모드로는 절대 타지 않음 - 실제 jobs.db는 건드리지 않는다).
+    from resume_input.runtime_mode import DB_PATH  # noqa: E402
+    if not DB_PATH.exists():
+        from scripts.init_demo_db import main as _init_demo_db  # noqa: E402
+        _init_demo_db()
+
 CAREER_LEVEL_OPTIONS = ["신입", "1~3년", "3~5년", "5년+"]
 
 STATUS_TONE = {
