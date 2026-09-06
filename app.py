@@ -4021,14 +4021,14 @@ def _s4_pdf_download(result: dict, skill_priority: list | None = None,
         st.markdown(f"<div class='s4-note'>{html.escape(pdf_result.get('reason') or '맞춤 PDF를 준비하지 못했습니다. 이력서를 다시 업로드해 주세요.')}</div>", unsafe_allow_html=True)
 
 
-def _s4_portfolio_download_button(project_priority: list | None) -> None:
+def _s4_portfolio_download_button(project_priority: list | None) -> str | None:
     """맞춤 포트폴리오(PDF) 다운로드 버튼만 - 개인 포트폴리오 원본(.pptx)이
     로컬에 있을 때 전용. 이력서 다운로드 버튼 옆에 나란히 놓는다(별도
     섹션/카드/설명 없음, 사용자 확정 2026-09-02). 같은 project_priority 로
     About 카드·슬라이드 블록·PROJECT 번호를 결정적으로 재배치(LLM 0회,
     문구 불변)한 뒤 PDF 로 변환한다. 원본 .pptx가 없으면(공개 데모 기본
-    상태) 안내 문구만 보여주고 버튼은 비활성화한다(이력서 다운로드엔
-    영향 없음)."""
+    상태) 버튼만 비활성화하고, 안내 문구는 호출부가 컬럼 밖에서 찍을 수
+    있도록 반환한다(이력서 다운로드엔 영향 없음)."""
     from resume_input import portfolio_pptx
 
     if st.session_state.get("portfolio_pptx_result") is None:
@@ -4040,11 +4040,11 @@ def _s4_portfolio_download_button(project_priority: list | None) -> None:
         print(f"[portfolio 생략] {reason}")
         st.button("맞춤 포트폴리오 다운로드", key="s4_dl_portfolio_err", type="secondary",
                    disabled=True, use_container_width=True)
-        st.markdown(
-            "<div class='s4-note'>포트폴리오 다운로드는 지금 이 공개 데모 환경에서는 제공되지 않습니다.</div>",
-            unsafe_allow_html=True,
-        )
-        return
+        # 안내문은 여기서(오른쪽 컬럼 안에) 찍지 않는다 - 왼쪽 컬럼이 비어
+        # 있으면 카드 안에서 텍스트만 어중간하게 오른쪽에 떠 보인다(2026-09-07
+        # 버그 수정). 호출부가 두 컬럼 바깥에서 다른 안내문과 같은 왼쪽
+        # 시작점으로 전체 폭에 걸쳐 찍는다.
+        return "포트폴리오 다운로드는 지금 이 공개 데모 환경에서는 제공되지 않습니다."
 
     with open(pr["pdf_path"], "rb") as f:
         st.download_button(
@@ -4052,6 +4052,7 @@ def _s4_portfolio_download_button(project_priority: list | None) -> None:
             mime="application/pdf", key="s4_download_portfolio", type="secondary",
             use_container_width=True,
         )
+    return None
 
 
 def render_s4() -> None:
@@ -4115,7 +4116,12 @@ def render_s4() -> None:
         with _dl[0]:
             _s4_pdf_download(result, skill_priority, project_priority)
         with _dl[1]:
-            _s4_portfolio_download_button(project_priority)
+            _portfolio_note = _s4_portfolio_download_button(project_priority)
+        if _portfolio_note:
+            # 컬럼 밖, 카드 전체 폭 기준 왼쪽 시작점에 - 위 다른 안내문들과
+            # 같은 자리에서 시작해야 한다(2026-09-07 버그 수정 - 오른쪽
+            # 컬럼 안에 찍으면 왼쪽이 비어 어중간하게 가운데처럼 보였다).
+            st.markdown(f"<div class='s4-note'>{html.escape(_portfolio_note)}</div>", unsafe_allow_html=True)
 
     st.space(20)
 
