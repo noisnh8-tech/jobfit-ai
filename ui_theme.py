@@ -179,6 +179,10 @@ p, span, label, div { color: var(--text-primary); }
     box-shadow: none !important;
     transition: background .15s ease, border-color .15s ease, color .15s ease;
     white-space: nowrap !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
 }
 .stButton > button p, .stButton > button span,
 .stLinkButton > a p, .stLinkButton > a span { color: var(--navy); }
