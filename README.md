@@ -2,7 +2,7 @@
 
 공고 탐색부터 지원 판단·맞춤 자료 준비·결과 관리까지 연결한 개인용 AI 취업 자동화 시스템
 
-> 🚀 [공개 데모 바로가기](https://jobfit-ai-zsdpzufdvzcjagkz5hro2y.streamlit.app/) · Source Code: https://github.com/noisnh8-tech/jobfit-ai
+> 🚀 [공개 데모 바로가기](https://jobfit-ai-demo.streamlit.app/) · Source Code: https://github.com/noisnh8-tech/jobfit-ai
 
 ---
 
