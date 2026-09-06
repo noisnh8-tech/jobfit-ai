@@ -184,6 +184,22 @@ p, span, label, div { color: var(--text-primary); }
     justify-content: center !important;
     text-align: center !important;
 }
+/* 2026-09-07(버그 수정, 실측 기반) - 실제 문제는 "중앙정렬이 안 됨"이
+   아니라 p(텍스트) 박스 자체가 자기 글자 실제 폭(Range.getBoundingClientRect
+   실측 약 52px)보다 좁게(약 38px) 잡혀서, 그 좁은 박스는 button 안에서
+   정확히 중앙에 오지만 그 안의 글자가 한쪽(오른쪽)으로 삐져나오는 것이었다
+   - DevTools로 p/stMarkdownContainer의 실제 렌더 폭을 재서 확인함.
+   글자 폭보다 박스가 좁아지지 않게 min-width를 텍스트 실제 폭 기준
+   (max-content)으로 고정해 삐져나옴 자체를 막는다. */
+.stButton > button [data-testid="stMarkdownContainer"],
+.stLinkButton > a [data-testid="stMarkdownContainer"],
+.stDownloadButton > button [data-testid="stMarkdownContainer"],
+.stButton > button [data-testid="stMarkdownContainer"] p,
+.stLinkButton > a [data-testid="stMarkdownContainer"] p,
+.stDownloadButton > button [data-testid="stMarkdownContainer"] p {
+    min-width: max-content !important;
+    margin: 0 !important;
+}
 .stButton > button p, .stButton > button span,
 .stLinkButton > a p, .stLinkButton > a span { color: var(--navy); }
 .stButton > button:hover, .stLinkButton > a:hover {
