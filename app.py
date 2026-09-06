@@ -3993,8 +3993,17 @@ def _s4_pdf_download(result: dict, skill_priority: list | None = None,
                 mime="application/pdf", key="s4_download_final", type="primary",
             )
     elif status == "no_change":
-        # 기술 순서 변경이 없어(이미 그 순서) PDF 를 새로 만들 필요가 없는 경우 -
-        # 원본을 그대로 내려받게 한다.
+        # "no_change"는 이 PDF 경로(구엔진)가 patch할 게 없다는 뜻일 뿐,
+        # 실제로 기술/프로젝트 순서 변경 제안이 있었는데도 _pdf_safe_commands가
+        # 걸러 반영이 안 된 경우에도 나온다(§3637 dialog 버그 수정과 동일 원인).
+        # any_applied 확인 없이 "이미 맞게 되어 있다"고 단정하면 위 배지·칩이
+        # 보여주는 실제 순서 변경과 모순된다.
+        applied = result.get("applied") or {}
+        any_applied = bool(
+            applied.get("project_order") or applied.get("skill_order")
+            or applied.get("bullet_reorders") or applied.get("term_replacements")
+            or applied.get("headline")
+        )
         src = _s4_original_pdf_source(result)
         data = None
         if isinstance(src, (bytes, bytearray)):
@@ -4010,7 +4019,10 @@ def _s4_pdf_download(result: dict, skill_priority: list | None = None,
                 mime="application/pdf", key="s4_download_orig", type="primary",
                 use_container_width=True,
             )
-            st.markdown("<div class='s4-note'>기술 순서가 이미 이 공고에 맞게 되어 있어 원본을 그대로 사용합니다.</div>", unsafe_allow_html=True)
+            if any_applied:
+                st.markdown("<div class='s4-note'>위 순서 변경 제안은 이 PDF 형식에 자동 반영되지 않습니다. 참고하여 직접 조정해 주세요.</div>", unsafe_allow_html=True)
+            else:
+                st.markdown("<div class='s4-note'>기술 순서가 이미 이 공고에 맞게 되어 있어 원본을 그대로 사용합니다.</div>", unsafe_allow_html=True)
         else:
             st.button("맞춤 이력서 다운로드", key="s4_dl_none", type="primary", disabled=True, use_container_width=True)
     elif status == "manual_review":
@@ -4113,16 +4125,17 @@ def render_s4() -> None:
             st.markdown("<div class='s4-note'>※ 프로젝트 순서는 PDF에 자동 반영되지 않습니다. 직접 조정해 주세요.</div>", unsafe_allow_html=True)
 
         st.space(16)
-        # 개인 표준 이력서면 이력서·포트폴리오 다운로드 버튼을 나란히
-        # (별도 "포트폴리오 준비" 카드/설명 없음 - 2026-09-02 사용자 확정).
-        if _proj_auto:
-            _dl = st.columns(2)
-            with _dl[0]:
-                _s4_pdf_download(result, skill_priority, project_priority)
-            with _dl[1]:
-                _s4_portfolio_download_button(project_priority)
-        else:
+        # 이력서·포트폴리오 다운로드 버튼을 항상 나란히 보여준다(별도
+        # "포트폴리오 준비" 카드/설명 없음 - 2026-09-02 사용자 확정).
+        # portfolio_pptx.generate()는 _proj_auto 여부와 무관하게 project_priority
+        # 만으로 동작하고, 원본 .pptx가 없으면(공개 데모 기본 상태) 자체적으로
+        # status="unavailable" + 안내 문구를 돌려주므로 호출을 _proj_auto로
+        # 막을 필요가 없다 - 실제 운영 화면과 동일하게 항상 노출한다.
+        _dl = st.columns(2)
+        with _dl[0]:
             _s4_pdf_download(result, skill_priority, project_priority)
+        with _dl[1]:
+            _s4_portfolio_download_button(project_priority)
 
     st.space(20)
 

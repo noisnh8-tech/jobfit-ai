@@ -14,3 +14,6 @@ numpy
 
 # link_check.py가 import 시점에 필요(데모 모드에서는 실제 호출은 안 함)
 requests
+
+# 지원 기록 화면의 "Excel로 내보내기" 기능(pandas.ExcelWriter)에 필요
+openpyxl
