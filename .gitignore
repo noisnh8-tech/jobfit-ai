@@ -1,0 +1,39 @@
+# 비밀정보
+.env
+.env.*
+!.env.example
+
+# 로컬에서만 생성되는 데이터/캐시 (데모 DB는 scripts/init_demo_db.py로 재생성)
+data/
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+*.db-wal
+*.db-shm
+cache/
+logs/
+outputs/
+uploads/
+generated/
+
+# 개인 문서(완성된 개인 문서 파일은 저장소에서 다운로드할 수 없게 한다 -
+# 2026-09-06 방침). 코드는 이 파일들이 없어도 동작하고, 있으면(로컬 전용)
+# 맞춤 문서 생성 기능이 활성화된다. resume_input/personal_resume_data.py.example
+# 은 구조를 보여주는 템플릿이라 예외적으로 추적한다.
+resume_input/personal_resume_data.py
+!resume_input/personal_resume_data.py.example
+*.pdf
+*.pptx
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# 로그
+*.log
+
+# OS
+.DS_Store
+Thumbs.db

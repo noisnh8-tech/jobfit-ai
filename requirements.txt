@@ -1,0 +1,16 @@
+# DEMO MODE로 `streamlit run app.py`를 실행하는 데 필요한 공통 의존성.
+# 운영체제 무관(Windows/macOS/Linux 전부 설치 가능). Windows 전용
+# 의존성(포트폴리오 PPTX 변환)은 requirements-windows.txt를 따로 보세요.
+streamlit==1.59.1
+
+# PDF 파싱 (이력서 업로드/텍스트 추출)
+PyMuPDF
+pdfplumber
+
+# 후보 랭킹 (MiniLM 로컬 임베딩 + BM25 폴백) - 전부 로컬 계산, 외부 API 없음
+sentence-transformers
+rank-bm25
+numpy
+
+# link_check.py가 import 시점에 필요(데모 모드에서는 실제 호출은 안 함)
+requests

@@ -1,0 +1,39 @@
+# -*- coding: utf-8 -*-
+"""
+resume_input/personal_resume_data.py.example — 개인 이력서 콘텐츠 템플릿.
+
+실제 사용 파일(확장자 .example을 뗀 personal_resume_data.py)은
+.gitignore에 등록되어 있어 공개 저장소에는 포함되지 않는다(2026-09-06
+방침 변경 - "완성된 개인 문서 파일을 저장소에서 직접 다운로드할 수
+있게 하지는 않는다"). html_resume.py는 그 파일이 없어도 동작하도록
+작성되어 있고(try/except ImportError), 없으면 맞춤 이력서 PDF 생성
+기능은 "개인 문서 템플릿은 공개 저장소에서 제외되었습니다." 메시지만
+보여주고 조용히 비활성화된다.
+
+사용법: 이 파일을 같은 폴더에 `personal_resume_data.py`(확장자
+.example 제거)로 복사한 뒤 내용을 본인 이력서로 채우면 된다 -
+html_resume.py의 나머지 렌더링/순서재배치 로직은 전혀 건드릴 필요가
+없다.
+"""
+from __future__ import annotations
+
+NAME = ""
+CONTACT = ""
+TAGLINE = ""
+
+GITHUB_URL = ""
+PORTFOLIO_URL = ""
+DASHBOARD_URL = ""
+
+# is_target_resume()이 지금 세션의 이력서가 "이 개인 이력서"인지 판별할
+# 때 쓰는 내용 시그니처(추출 텍스트에 전부 포함돼야 매치). 본인 이력서의
+# 고유한 문구 3~4개를 넣으면 된다.
+TARGET_SIGNATURE_STRINGS: tuple[str, ...] = ()
+
+SKILLS: list[tuple[str, str]] = []
+
+# PROJECTS: html_resume.py의 JOBFIT/AIRBNB/REWARD 같은 구조.
+# {"match": "...", "title": "...", "tech": "...", "blocks": [(kind, text), ...]}
+PROJECTS: list[dict] = []
+
+EXTRAS_HTML = ""

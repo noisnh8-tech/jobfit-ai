@@ -1,0 +1,29 @@
+# Streamlit 공식 테마 설정(2026-08-14 신설, developing-with-streamlit
+# skill 기준 - "커스텀 CSS 대신 config.toml을 써라"). 이 프로젝트에
+# 지금까지 config.toml이 아예 없어서 모든 색/폰트/radius가 ui_theme.py의
+# 주입 CSS(!important 다수)로만 표현되고 있었다.
+#
+# 2026-08-14 수정 - 처음엔 ui_theme.py :root 토큰(구형 전역 테마, 파스텔
+# 블루 배경 + navy #163A70)을 그대로 옮겼었는데, 실제 브라우저로
+# STEP1(이력서 업로드)과 나란히 비교해보니 STEP1은 이미 그 구형 테마가
+# 아니라 app.py의 "JobFit AI Design System v1"(_DESIGN_TOKENS_CSS,
+# 2026-07-24 확정 - White+Navy only, navy #0F1F4A, 흰 배경)을 쓰고
+# 있어서 화면마다 배경색/네이비 색이 서로 달라 보이는 게 실제 문제로
+# 확인됐다(사용자 실측 지적). 여기 값을 그 최신 디자인 시스템 토큰으로
+# 맞춘다 - 지금 이 파일이 실제로 영향을 주는 새 native 위젯 화면(공고
+# 목록)도 같은 톤을 쓰게 하기 위함.
+[theme]
+primaryColor = "#0F1F4A"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F5F7FA"
+textColor = "#0F1F4A"
+borderColor = "#E8EDF5"
+font = "Pretendard:https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css"
+baseRadius = "13px"
+
+redColor = "#E0555F"
+orangeColor = "#B9702E"
+yellowColor = "#9C7A1A"
+grayColor = "#5E6472"
+blueColor = "#2F6FE0"
+greenColor = "#1F8F5E"

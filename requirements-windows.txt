@@ -1,0 +1,9 @@
+# Windows 전용 - "맞춤 포트폴리오(.pptx)" 기능을 로컬(local) 모드에서 직접
+# 테스트해보고 싶을 때만 필요합니다. DEMO MODE 실행에는 필요 없고, 이
+# 기능은 원본 개인 포트폴리오 파일이 없으면 어차피 자동으로 비활성화됩니다
+# (resume_input/portfolio_pptx.py 참고). macOS/Linux에서는 설치되지 않습니다.
+#
+# 설치: pip install -r requirements.txt -r requirements-windows.txt
+
+python-pptx
+pywin32
