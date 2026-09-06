@@ -60,16 +60,18 @@ def _load_embedding_model():
         return _emb_model
 
     from sentence_transformers import SentenceTransformer
+    _MODEL_NAME = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
     try:
-        _emb_model = SentenceTransformer(
-            "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
-            local_files_only=True,
-        )
-    except Exception as exc:
-        raise RuntimeError(
-            "임베딩 모델의 로컬 캐시를 찾지 못했습니다. "
-            "온라인 상태에서 모델을 한 번 내려받은 뒤 다시 실행하세요."
-        ) from exc
+        _emb_model = SentenceTransformer(_MODEL_NAME, local_files_only=True)
+    except Exception:
+        # 공개 데모 배포 환경(예: Streamlit Community Cloud) 컨테이너는
+        # 이 프로젝트 밖에서 매번 새로 뜨는 환경이라 로컬 캐시가 처음부터
+        # 없다 - local_files_only 로만 막아두면 데모가 항상 실패한다.
+        # 캐시가 없을 때만(최초 1회) 공개 모델 허브에서 내려받는 것으로
+        # 폴백한다(개인 데이터·Credential과 무관한 공개 오픈소스 모델
+        # 가중치일 뿐이며, 캐시가 있는 로컬 개발 환경에서는 여전히 위
+        # local_files_only 경로가 그대로 쓰여 동작이 바뀌지 않는다).
+        _emb_model = SentenceTransformer(_MODEL_NAME)
     return _emb_model
 
 
