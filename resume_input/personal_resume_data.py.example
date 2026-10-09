@@ -32,7 +32,7 @@ TARGET_SIGNATURE_STRINGS: tuple[str, ...] = ()
 
 SKILLS: list[tuple[str, str]] = []
 
-# PROJECTS: html_resume.py의 JOBFIT/AIRBNB/REWARD 같은 구조.
+# PROJECTS: 프로젝트별로 아래 구조의 dict 를 나열한다.
 # {"match": "...", "title": "...", "tech": "...", "blocks": [(kind, text), ...]}
 PROJECTS: list[dict] = []
 

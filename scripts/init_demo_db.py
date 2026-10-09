@@ -15,6 +15,7 @@ scripts/init_demo_db.py — 공개 데모 DB(data/demo.db) 초기화 스크립�
   - candidate_jobs   : 공개 데모용 공고 8건(회사·직무·본문 전부 새로 작성 - 가상)
   - applications      : 공개 데모용 지원기록 4건(위 공고와 별개로 새로 작성 - 가상)
   - application_status_history
+  - pending_result_messages    : 결과 메시지 도착(확인 필요) 예시 1건(가상 알림 메일 - 아래 참고)
   - resume_understanding_cache : 가상 지원자 프로필 1건
   - semantic_link_cache        : 공고 8건 × 가상 지원자 분석 결과(사전 계산)
   - preparation_sessions/events, collection_logs (화면이 비어 보이지 않게 소량)
@@ -40,11 +41,10 @@ We couldn't connect to 'https://huggingface.co'...`) 다운로드도 실패했�
 공개 저장소/데모 DB 어디에도 사용하지 않는다). 가상 이력서 PDF는
 `_build_demo_resume_pdf_bytes()`가 실행 시점에 PyMuPDF 내장 한국어
 폰트("korea-s")로 그 자리에서 생성한다 - 저장소에 커밋되는 파일이 아니라
-매번 새로 만들어지는 바이트열이다. 프로젝트 3건의 이름(AI 기반 취업
-의사결정 시스템/서울 Airbnb 호스트 수익 최적화 가이드/리워드 비용
-최적화 전략)만 실제 이력서·포트폴리오·README에 실린 것과 동일하게
-재사용한다 - 이 프로젝트명·요약 설명은 README/포트폴리오에도 공개된
-내용이라 재사용 가능(사용자 확정, 개인정보 아님).
+매번 새로 만들어지는 바이트열이다. 프로젝트 2건의 이름(AI 기반 취업
+의사결정 시스템/서울 Airbnb 호스트 수익 최적화 가이드)만 실제 이력서·
+포트폴리오에 실린 것과 동일하게 재사용한다 - 이 프로젝트명·요약 설명은
+포트폴리오에도 공개된 내용이라 재사용 가능(사용자 확정, 개인정보 아님).
 
 지원 판단 결과(2-1-1)는 임의로 정한 라벨이 아니라, 실제
 judge_engine/eligibility_compare 로직 자체에 위 가상 이력서와 아래 가상
@@ -93,9 +93,6 @@ Python, SQL, LLM/AI, n8n, Streamlit, Excel
 2. 서울 Airbnb 호스트 수익 최적화 가이드
 운영 데이터 분석 및 수익 예측 대시보드 구현 (3인팀)
 
-3. 리워드 비용 최적화 전략
-구매 행동 기반 리워드 운영 전략 설계 (5인팀)
-
 학력
 전문학사 졸업
 
@@ -106,7 +103,7 @@ Python, SQL, LLM/AI, n8n, Streamlit, Excel
 # resume_input.pdf_parser.extract_text_from_pdf() 로 위 DEMO_RESUME_TEXT를
 # 넣어 만든 PDF를 재추출한 결과의 sha256 앞 16자리(고정값 - 재계산해도
 # 같은 텍스트면 항상 이 값이 나온다. verify_demo_resume_hash()로 검증 가능).
-DEMO_RESUME_HASH = "d6da0efb846c8e09"
+DEMO_RESUME_HASH = "d1c0aef3b7ca3e4d"
 
 
 def _build_demo_resume_pdf_bytes() -> bytes:
@@ -275,7 +272,7 @@ POSTINGS = [
 
 # quick_analysis(v2) 스키마 그대로 - requirement/type/relation/gap_type/
 # short_label/resume_evidence. resume_evidence는 전부 공개 이력서·포트폴리오에
-# 이미 있는 프로젝트 서술(JobFit AI/Airbnb/Starbucks 리워드)만 재사용.
+# 이미 있는 프로젝트 서술(JobFit AI/Airbnb)과 가상 이력서의 보유 기술만 재사용.
 ANALYSIS_RESULTS = {
     "demo-001": {
         "job_core": "커머스 서비스의 핵심 지표를 분석하고 대시보드로 관리하며, SQL/Python 기반 데이터 분석 업무를 수행하는 직무입니다.",
@@ -288,7 +285,7 @@ ANALYSIS_RESULTS = {
         "requirements": [
             {"requirement": "SQL과 Python을 활용한 데이터 분석 및 지표 설계 경험", "type": "skill",
              "relation": "match", "gap_type": None, "short_label": "SQL·Python 데이터 분석",
-             "resume_evidence": "Starbucks 리워드 비용 최적화 프로젝트에서 Python/Pandas로 Net Lift Index 등 지표를 설계·분석함"},
+             "resume_evidence": "보유 기술에 Python·SQL이 있고, Airbnb 프로젝트에서 Python으로 운영 데이터를 분석해 RevPAR(가격 × 예약률) 기준으로 수익 차이를 비교함"},
             {"requirement": "가설 수립부터 통계적 검증까지 분석 프로세스 수행 경험", "type": "task",
              "relation": "match", "gap_type": None, "short_label": "통계 기반 분석 프로세스",
              "resume_evidence": "Airbnb 프로젝트에서 운영 요소별 수익 차이를 통계적으로 검증함"},
@@ -300,7 +297,7 @@ ANALYSIS_RESULTS = {
              "resume_evidence": "이커머스 도메인 실무 경험은 없으나 유사한 소비자 행동·운영 데이터 분석 경험 보유"},
         ],
         "resume_order": {
-            "project_priority": ["리워드 비용 최적화 전략", "서울 Airbnb 호스트 수익 최적화 가이드", "AI 기반 취업 의사결정 시스템"],
+            "project_priority": ["서울 Airbnb 호스트 수익 최적화 가이드", "AI 기반 취업 의사결정 시스템"],
             "skill_priority": ["SQL", "Python / Pandas", "Excel", "n8n", "Streamlit", "LLM / AI"],
         },
     },
@@ -327,7 +324,7 @@ ANALYSIS_RESULTS = {
              "resume_evidence": "기획 직무로 근무한 경력은 없으나, 개인 프로젝트에서 문제 정의부터 기능 설계·구현까지 기획자 역할을 직접 수행함"},
         ],
         "resume_order": {
-            "project_priority": ["AI 기반 취업 의사결정 시스템", "서울 Airbnb 호스트 수익 최적화 가이드", "리워드 비용 최적화 전략"],
+            "project_priority": ["AI 기반 취업 의사결정 시스템", "서울 Airbnb 호스트 수익 최적화 가이드"],
             "skill_priority": ["LLM / AI", "n8n", "Streamlit", "Python / Pandas", "SQL", "Excel"],
         },
     },
@@ -344,14 +341,14 @@ ANALYSIS_RESULTS = {
              "relation": "match", "gap_type": None, "short_label": "SQL·Python 분석 역량",
              "resume_evidence": "Python/Pandas/SQL 기반 데이터 분석 프로젝트 다수 수행"},
             {"requirement": "실험 설계 및 A/B 테스트 경험", "type": "task",
-             "relation": "partial", "gap_type": "experience_gap", "short_label": "그룹 비교 시뮬레이션 경험으로 대체",
-             "resume_evidence": "formal A/B 테스트 실행 경험은 없으나, Starbucks 프로젝트에서 그룹 비교·시뮬레이션 방식으로 효과를 검증함"},
+             "relation": "partial", "gap_type": "experience_gap", "short_label": "그룹 간 통계 검정 경험으로 대체",
+             "resume_evidence": "formal A/B 테스트 실행 경험은 없으나, Airbnb 프로젝트에서 슈퍼호스트 여부 등 운영 방식별 수익 차이를 비모수 통계 검정으로 비교함"},
             {"requirement": "영어 커뮤니케이션 가능자 우대(TOEIC 700점 이상)", "type": "qualification",
              "relation": "no_match", "gap_type": "qualification_gap", "short_label": None,
              "resume_evidence": None},
         ],
         "resume_order": {
-            "project_priority": ["리워드 비용 최적화 전략", "서울 Airbnb 호스트 수익 최적화 가이드", "AI 기반 취업 의사결정 시스템"],
+            "project_priority": ["서울 Airbnb 호스트 수익 최적화 가이드", "AI 기반 취업 의사결정 시스템"],
             "skill_priority": ["SQL", "Python / Pandas", "Excel", "LLM / AI", "n8n", "Streamlit"],
         },
     },
@@ -378,7 +375,7 @@ ANALYSIS_RESULTS = {
              "resume_evidence": None},
         ],
         "resume_order": {
-            "project_priority": ["리워드 비용 최적화 전략", "서울 Airbnb 호스트 수익 최적화 가이드", "AI 기반 취업 의사결정 시스템"],
+            "project_priority": ["서울 Airbnb 호스트 수익 최적화 가이드", "AI 기반 취업 의사결정 시스템"],
             "skill_priority": ["SQL", "Python / Pandas", "Excel", "n8n", "Streamlit", "LLM / AI"],
         },
     },
@@ -393,7 +390,7 @@ ANALYSIS_RESULTS = {
         "requirements": [
             {"requirement": "SQL, Python을 활용한 데이터 분석 경험", "type": "skill",
              "relation": "match", "gap_type": None, "short_label": "SQL·Python 데이터 분석",
-             "resume_evidence": "리워드 비용 최적화 전략 프로젝트에서 Python/Pandas·SQL로 지표를 설계·분석함"},
+             "resume_evidence": "보유 기술에 Python·SQL이 있고, Airbnb 프로젝트에서 Python으로 운영 데이터를 분석해 RevPAR(가격 × 예약률) 기준으로 수익 차이를 비교함"},
             {"requirement": "데이터 기반으로 문제를 정의하고 해결한 경험", "type": "task",
              "relation": "match", "gap_type": None, "short_label": "데이터 기반 문제 정의·해결",
              "resume_evidence": "Airbnb 프로젝트에서 운영 요소별 수익 차이를 데이터로 진단하고 개선 전략을 도출함"},
@@ -402,7 +399,7 @@ ANALYSIS_RESULTS = {
              "resume_evidence": "Streamlit으로 의사결정 대시보드를 구현했으나 자동 리포트 발송 자동화 경험은 없음"},
         ],
         "resume_order": {
-            "project_priority": ["리워드 비용 최적화 전략", "서울 Airbnb 호스트 수익 최적화 가이드", "AI 기반 취업 의사결정 시스템"],
+            "project_priority": ["서울 Airbnb 호스트 수익 최적화 가이드", "AI 기반 취업 의사결정 시스템"],
             "skill_priority": ["SQL", "Python / Pandas", "Excel", "n8n", "Streamlit", "LLM / AI"],
         },
     },
@@ -426,7 +423,7 @@ ANALYSIS_RESULTS = {
              "resume_evidence": "n8n으로 데이터 수집·처리·결과 반영 등 반복 업무를 자동화함"},
         ],
         "resume_order": {
-            "project_priority": ["AI 기반 취업 의사결정 시스템", "서울 Airbnb 호스트 수익 최적화 가이드", "리워드 비용 최적화 전략"],
+            "project_priority": ["AI 기반 취업 의사결정 시스템", "서울 Airbnb 호스트 수익 최적화 가이드"],
             "skill_priority": ["LLM / AI", "n8n", "Streamlit", "Python / Pandas", "SQL", "Excel"],
         },
     },
@@ -443,14 +440,14 @@ ANALYSIS_RESULTS = {
              "relation": "match", "gap_type": None, "short_label": "SQL·Python 분석 역량",
              "resume_evidence": "Python/Pandas/SQL 기반 데이터 분석 프로젝트 다수 수행"},
             {"requirement": "A/B 테스트 등 실험 설계 경험", "type": "task",
-             "relation": "partial", "gap_type": "experience_gap", "short_label": "그룹 비교 시뮬레이션 경험으로 대체",
-             "resume_evidence": "formal A/B 테스트 실행 경험은 없으나, Starbucks 프로젝트에서 그룹 비교·시뮬레이션 방식으로 효과를 검증함"},
+             "relation": "partial", "gap_type": "experience_gap", "short_label": "그룹 간 통계 검정 경험으로 대체",
+             "resume_evidence": "formal A/B 테스트 실행 경험은 없으나, Airbnb 프로젝트에서 슈퍼호스트 여부 등 운영 방식별 수익 차이를 비모수 통계 검정으로 비교함"},
             {"requirement": "그로스 마케팅 도메인 경험 우대", "type": "domain",
              "relation": "partial", "gap_type": "domain_gap", "short_label": "그로스 도메인 신규",
              "resume_evidence": "그로스 마케팅 도메인 실무 경험은 없으나 유사한 사용자 행동 데이터 분석 경험 보유"},
         ],
         "resume_order": {
-            "project_priority": ["리워드 비용 최적화 전략", "서울 Airbnb 호스트 수익 최적화 가이드", "AI 기반 취업 의사결정 시스템"],
+            "project_priority": ["서울 Airbnb 호스트 수익 최적화 가이드", "AI 기반 취업 의사결정 시스템"],
             "skill_priority": ["SQL", "Python / Pandas", "Excel", "LLM / AI", "n8n", "Streamlit"],
         },
     },
@@ -477,7 +474,7 @@ ANALYSIS_RESULTS = {
              "resume_evidence": None},
         ],
         "resume_order": {
-            "project_priority": ["리워드 비용 최적화 전략", "서울 Airbnb 호스트 수익 최적화 가이드", "AI 기반 취업 의사결정 시스템"],
+            "project_priority": ["서울 Airbnb 호스트 수익 최적화 가이드", "AI 기반 취업 의사결정 시스템"],
             "skill_priority": ["SQL", "Python / Pandas", "Excel", "n8n", "Streamlit", "LLM / AI"],
         },
     },
@@ -504,6 +501,19 @@ APPLICATIONS = [
      "memo": "데모 예시 - 실제 지원 기록 아님", "source": "demo",
      "elapsed_seconds": 285, "cover_letter": True},
 ]
+
+# ── 2-0) 결과 메시지 도착(확인 필요) 예시 - 가상 알림 메일 1건 ──
+# 운영 경로(ops_api /application-result)는 본문에 합격/불합격 문구 없이
+# "새 메시지가 도착했습니다"만 있는 ATS 알림 메일이 지원 기록 1건에만
+# 매칭될 때 상태를 바꾸지 않고 application_manager.add_pending_message()로
+# "확인 필요"만 남긴다. 데모에서는 메일 연동과 ops_api 반영이 비활성화되어
+# 있으므로, 그 결과와 같은 행을 같은 함수로 직접 넣는다(판단 조건 추가 없음).
+# 회사·제목·message_id 모두 가상 값이다.
+DEMO_PENDING_MESSAGE = {
+    "message_id": "demo-msg-001",
+    "job_id": "demo-app-002",
+    "subject": "[F테크] 새 메시지가 도착했습니다",
+}
 
 # ── 2-1) "공고 찾기" 후보 정렬 사전 계산 결과 (§모듈 docstring 참고) ──
 # 이 저장소를 로컬(모델 캐시 있는 환경)에서 그대로 실행해
@@ -556,10 +566,9 @@ _PRECOMPUTED_RECOMMENDATION_JSON = r"""
       },
       "matched_keywords": [
         "ai",
-        "기반",
-        "운영",
         "llm",
-        "설계"
+        "기반",
+        "운영"
       ],
       "career_status": "적합",
       "career_reason": "신입 사용자이며 공고는 신입 경력을 요구합니다."
@@ -609,9 +618,9 @@ _PRECOMPUTED_RECOMMENDATION_JSON = r"""
       "matched_keywords": [
         "데이터",
         "분석",
-        "기반",
         "python",
         "sql",
+        "기반",
         "대시보드"
       ],
       "career_status": "적합",
@@ -662,11 +671,9 @@ _PRECOMPUTED_RECOMMENDATION_JSON = r"""
       "matched_keywords": [
         "데이터",
         "분석",
-        "기반",
         "python",
         "sql",
-        "행동",
-        "설계"
+        "기반"
       ],
       "career_status": "약간상향",
       "career_reason": "신입 사용자이며 공고는 1~3년 경력을 요구합니다."
@@ -715,12 +722,11 @@ _PRECOMPUTED_RECOMMENDATION_JSON = r"""
       },
       "matched_keywords": [
         "데이터",
-        "기반",
         "분석",
         "python",
         "sql",
-        "결과",
-        "설계"
+        "기반",
+        "결과"
       ],
       "career_status": "약간상향",
       "career_reason": "신입 사용자이며 공고는 1~3년 경력을 요구합니다."
@@ -770,10 +776,10 @@ _PRECOMPUTED_RECOMMENDATION_JSON = r"""
       "matched_keywords": [
         "데이터",
         "분석",
-        "기반",
-        "운영",
         "python",
         "sql",
+        "기반",
+        "운영",
         "대시보드"
       ],
       "career_status": "약간상향",
@@ -823,9 +829,8 @@ _PRECOMPUTED_RECOMMENDATION_JSON = r"""
       },
       "matched_keywords": [
         "ai",
-        "기반",
         "llm",
-        "설계"
+        "기반"
       ],
       "career_status": "적합",
       "career_reason": "신입 사용자이며 공고는 신입 경력을 요구합니다."
@@ -849,13 +854,13 @@ _PRECOMPUTED_RECOMMENDATION_JSON = r"""
 """
 PRECOMPUTED_RECOMMENDATION = json.loads(_PRECOMPUTED_RECOMMENDATION_JSON)
 
-# ── 3) 가상 지원자 이력서 이해 캐시 (프로젝트명·요약은 README/포트폴리오에
+# ── 3) 가상 지원자 이력서 이해 캐시 (프로젝트명·요약은 포트폴리오에
 #      공개된 내용만 재사용 - 개인정보 아님, §모듈 docstring 참고) ──
 RESUME_SEMANTIC_OBJECTS = [
     {"layer": "skill", "normalized_text": "SQL/Python 데이터 분석", "importance": "core",
      "confidence": "high", "persona_tags": ["분석가"],
-     "evidence": {"project": "리워드 비용 최적화 전략", "section": "기술",
-                  "source_text": "Python, Pandas 기반 구매 행동 지표 설계 및 분석"}},
+     "evidence": {"project": "", "section": "보유 기술",
+                  "source_text": "Python, SQL, LLM/AI, n8n, Streamlit, Excel"}},
     {"layer": "task", "normalized_text": "통계적 가설 검정", "importance": "core",
      "confidence": "high", "persona_tags": ["분석가"],
      "evidence": {"project": "서울 Airbnb 호스트 수익 최적화 가이드", "section": "해결 과정",
@@ -876,7 +881,7 @@ RESUME_SEMANTIC_OBJECTS = [
 RESUME_SUMMARY = {
     "profile_summary": "데이터 분석과 자동화를 결합해 반복 업무를 줄이고 의사결정을 지원하는 분석가",
     "core_strength": "문제 재정의 후 분석 기준을 새로 세우고, 결과를 실행 가능한 도구로 연결하는 역량",
-    "problem_solved": "가격 중심/완료 여부 중심의 단순 분석에서 벗어나 운영 요소·행동 기반 분석으로 전환",
+    "problem_solved": "가격 중심의 단순 분석에서 벗어나 실제 운영 숙소와 운영 요소 기반 분석으로 전환",
     "thinking_style": "가설 수립 → 통계적 검증 → 실행 가능한 도구화",
 }
 
@@ -966,6 +971,19 @@ def _seed_applications() -> None:
     print(f"applications: {len(APPLICATIONS)}건 시드 완료(preparation_sessions 포함)")
 
 
+def _seed_pending_result_message() -> None:
+    # _seed_applications() 이후에 호출해야 한다 - update_status()가 호출되면
+    # 같은 지원 건의 "확인 필요" 표시를 자동 해제하기 때문이다.
+    apps = application_manager.list_applications()
+    target = next(a for a in apps if a.get("job_id") == DEMO_PENDING_MESSAGE["job_id"])
+    application_manager.add_pending_message(
+        DEMO_PENDING_MESSAGE["message_id"], int(target["application_id"]),
+        subject=DEMO_PENDING_MESSAGE["subject"],
+        received_at=datetime.now().isoformat(timespec="seconds"),
+    )
+    print("pending_result_messages: 1건 시드 완료(결과 메시지 도착 - 확인 필요 예시)")
+
+
 def _seed_last_resume() -> None:
     pdf_bytes = _build_demo_resume_pdf_bytes()
     last_resume.save(
@@ -1031,6 +1049,7 @@ def main() -> None:
     _seed_resume_understanding()
     _seed_semantic_link_cache()
     _seed_applications()
+    _seed_pending_result_message()
     _seed_last_resume()
     _seed_collection_log()
     _seed_recommendation_cache()
